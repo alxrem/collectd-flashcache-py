@@ -1,0 +1,14 @@
+#!/bin/sh
+
+apt-get update
+apt-get install -y --no-install-recommends \
+	linux-headers-amd64 \
+	flashcache-dkms \
+	flashcache-utils \
+	libpython2.7 \
+	collectd \
+	collectd-utils
+
+flashcache_load /dev/sda || flashcache_create -p back cachedev /dev/sda /dev/sdb
+cp /vagrant/vagrant/collectd.conf /etc/collectd/
+service collectd restart
