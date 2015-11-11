@@ -19,7 +19,7 @@ def config_callback(conf):
             Config.DEVICES = node.values
         else:
             log('Unknown config key: %s.' % node.key, 'warning')
-        
+
 def read_callback():
     cmd = [Config.DMSETUP, 'status', Config.DEVICES[0]]
     try:
@@ -32,7 +32,7 @@ def read_callback():
     if rc != 0:
          log('dmsetup execution error')
          return
-    
+
     try:
         output = p.stdout.read()
     except Exception, e:

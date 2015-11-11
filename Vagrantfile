@@ -9,7 +9,7 @@ Vagrant.configure('2') do |config|
     v.customize ['storagectl', :id,
                  '--name', 'SATA Controller', '--add', 'sata']
     2.times do |i|
-      image = File.join(Etc.systmpdir, "lashcachetest#{i}.vdi")
+      image = File.join(Etc.systmpdir, "flashcachetest#{i}.vdi")
 
       v.customize ['createhd', '--filename', image, '--size', 10]
       v.customize ['storageattach', :id, '--storagectl', 'SATA Controller',
