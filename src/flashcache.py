@@ -11,7 +11,7 @@ from subprocess import Popen, PIPE
 PROC_ROOT = '/proc/flashcache'
 
 class Config:
-    DEVICES = None
+    DMSETUP = '/sbin/dmsetup'
 
 def config_callback(conf):
     devices = set()
@@ -20,6 +20,8 @@ def config_callback(conf):
     for node in conf.children:
         if node.key == 'Device':
             devices.add(node.values[0])
+        elif node.key == 'DMSetup':
+            Config.DMSETUP = node.values[0]
         elif node.key == 'IgnoreSelected':
             value = node.values[0].lower()
             if value in ['true', 'yes', '1']:
@@ -32,11 +34,9 @@ def config_callback(conf):
         else:
             log('Unknown confiuration key {0}'.format(node.key))
 
-    all_devices = set([
-        entry
-        for entry in os.listdir(PROC_ROOT)
-        if os.path.isdir(os.path.join(PROC_ROOT, entry))
-    ])
+    all_devices = set([entry
+                       for entry in os.listdir(PROC_ROOT)
+                       if os.path.isdir(os.path.join(PROC_ROOT, entry))])
 
     if devices:
         if ignore_selected:
@@ -51,6 +51,20 @@ def config_callback(conf):
     else:
         Config.DEVICES = all_devices
 
+    Config.DM_DEVICES = detect_dm_devices()
+
+def detect_dm_devices():
+    p = Popen([Config.DMSETUP, 'table'], stdout=PIPE)
+    rc = p.wait()
+    if rc != 0:
+         raise Exception('dmsetup execution error')
+    return dict([('{0}+{1}'.format(ssd, disk), dmdev)
+                 for dmdev, ssd, disk
+                 in re.findall(
+                     r'^(.*?): \d+ \d+ flashcache conf:\n'
+                     r'\s+ssd dev \(.*?/(\w+)\), disk dev \(.*?/(\w+)\)',
+                     p.stdout.read(), re.M)])
+
 def read_callback():
     for device in Config.DEVICES:
         for name in ['flashcache_stats', 'flashcache_errors']:
@@ -61,7 +75,7 @@ def dispatch_stats(stats, device):
     for metric, value in (match.groups()
                           for match
                           in re.finditer(r'(\w+)=(\d+)', stats)):
-        dispatch_value(device, metric, value)
+        dispatch_value(Config.DM_DEVICES[device], metric, value)
 
 def dispatch_value(device, metric, val):
     value = collectd.Values()
