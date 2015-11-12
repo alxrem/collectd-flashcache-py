@@ -12,14 +12,13 @@ PROC_ROOT = '/proc/flashcache'
 
 class Config:
     DMSETUP = '/sbin/dmsetup'
+    DEVICES = set()
+    IGNORE_SELECTED = False
 
 def config_callback(conf):
-    devices = set()
-    ignore_selected = False
-
     for node in conf.children:
         if node.key == 'Device':
-            devices.add(node.values[0])
+            Config.DEVICES.add(node.values[0])
         elif node.key == 'DMSetup':
             Config.DMSETUP = node.values[0]
         elif node.key == 'IgnoreSelected':
@@ -34,20 +33,19 @@ def config_callback(conf):
         else:
             log('Unknown confiuration key {0}'.format(node.key))
 
+def init_callback():
     all_devices = set([entry
                        for entry in os.listdir(PROC_ROOT)
                        if os.path.isdir(os.path.join(PROC_ROOT, entry))])
 
-    if devices:
-        if ignore_selected:
-            Config.DEVICES = all_devices - devices
-        else:
-            Config.DEVICES = all_devices & devices
-
-        unknown_devices = devices - all_devices
-        for device in unknown_devices:
+    if Config.DEVICES:
+        for device in Config.DEVICES - all_devices:
             log('Unknown flashcache device {0}. '
                     'Examine {1}.'.format(device, PROC_ROOT), 'warning')
+        if Config.IGNORE_SELECTED:
+            Config.DEVICES = all_devices - Config.DEVICES
+        else:
+            Config.DEVICES = all_devices & Config.DEVICES
     else:
         Config.DEVICES = all_devices
 
@@ -94,4 +92,5 @@ def log(message, level='error'):
     level_method('flashcache plugin: ' + message)
 
 collectd.register_config(config_callback)
+collectd.register_init(init_callback)
 collectd.register_read(read_callback)
