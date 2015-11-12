@@ -6,7 +6,7 @@ import collectd
 import os
 import os.path
 import re
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, STDOUT
 
 PROC_ROOT = '/proc/flashcache'
 
@@ -54,7 +54,10 @@ def config_callback(conf):
     Config.DM_DEVICES = detect_dm_devices()
 
 def detect_dm_devices():
-    p = Popen([Config.DMSETUP, 'table'], stdout=PIPE)
+    try:
+        p = Popen([Config.DMSETUP, 'table'], stdout=PIPE, stderr=STDOUT)
+    except OSError:
+        raise Exception("Can't execute {0}".format(Config.DMSETUP))
     rc = p.wait()
     if rc != 0:
          raise Exception('dmsetup execution error')
