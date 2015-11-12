@@ -8,7 +8,7 @@ Vagrant.configure('2') do |config|
   config.vm.provider 'virtualbox' do |v|
     v.customize ['storagectl', :id,
                  '--name', 'SATA Controller', '--add', 'sata']
-    2.times do |i|
+    4.times do |i|
       image = File.join(Etc.systmpdir, "flashcachetest#{i}.vdi")
 
       v.customize ['createhd', '--filename', image, '--size', 10]

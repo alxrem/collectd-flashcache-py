@@ -9,6 +9,9 @@ apt-get install -y --no-install-recommends \
 	collectd \
 	collectd-utils
 
-flashcache_load /dev/sda || flashcache_create -p back cachedev /dev/sda /dev/sdb
+flashcache_destroy /dev/sda || true
+flashcache_create -p back cachedev1 /dev/sda /dev/sdb
+flashcache_destroy /dev/sdc || true
+flashcache_create -p back cachedev2 /dev/sdc /dev/sdd
 cp /vagrant/vagrant/collectd.conf /etc/collectd/
 service collectd restart
