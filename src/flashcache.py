@@ -73,23 +73,18 @@ def read_callback():
                 dispatch_stats(stats.read(), device)
 
 def dispatch_stats(stats, device):
-    for metric, value in (match.groups()
-                          for match
-                          in re.finditer(r'(\w+)=(\d+)', stats)):
-        dispatch_value(Config.DM_DEVICES[device], metric, value)
-
-def dispatch_value(device, metric, val):
-    value = collectd.Values()
-    value.plugin = 'flashcache'
-    value.plugin_instance = device
-    value.type = 'gauge'
-    value.type_instance = metric.replace(' ', '_')
-    value.values = [int(val)]
-    value.dispatch()
+    for metric, val in re.findall(r'(\w+)=(\d+)', stats):
+        value = collectd.Values()
+        value.plugin = 'flashcache'
+        value.plugin_instance = Config.DM_DEVICES[device]
+        value.type = 'gauge'
+        value.type_instance = metric.replace(' ', '_')
+        value.values = [int(val)]
+        value.dispatch()
 
 def log(message, level='error'):
     level_method = getattr(collectd, level)
-    level_method('flashcache plugin: ' + message)
+    level_method('flashcache plugin: {0}'.format(message))
 
 collectd.register_config(config_callback)
 collectd.register_init(init_callback)
