@@ -34,15 +34,24 @@ class CollectdTestCase(unittest.TestCase):
         self.run_collectd()
 
     def tearDown(self):
-        shutil.rmtree(self.metrics_dir)
-        os.unlink(self.config)
+        self.delete_metrics_dir()
+        self.delete_config()
 
     def create_metrics_dir(self):
         self.metrics_dir = mkdtemp()
 
+    def delete_metrics_dir(self):
+        shutil.rmtree(self.metrics_dir)
 
     def create_config(self):
         config_fd, self.config = mkstemp()
+        module_config = self.module_config()
+        if module_config:
+            module_config = """
+            <Module flashcache>
+                {0}
+            </Module>
+            """.format(module_config)
         os.write(config_fd, """
             Hostname "{0}"
             FQDNLookup false
@@ -57,9 +66,18 @@ class CollectdTestCase(unittest.TestCase):
             <Plugin python>
               ModulePath "/vagrant"
               Import "flashcache"
+
+              {2}
+
             </Plugin>
-        """.format(self.hostname, self.metrics_dir))
+        """.format(self.hostname, self.metrics_dir, module_config))
         os.close(config_fd)
+
+    def module_config(self):
+        return ""
+
+    def delete_config(self):
+        os.unlink(self.config)
 
     def run_collectd(self):
         p = Popen(['/usr/sbin/collectd', '-C', self.config, '-f'],
@@ -86,6 +104,9 @@ class CollectdTestCase(unittest.TestCase):
             0, len(unknown_metrics),
             'Unknown metrics {0}'.format(', '.join(unknown_metrics)))
 
+    def assertStderrContains(self, message):
+        self.assertTrue(message in self.stderr)
+
     def deleteAllMetrics(self, cachedev):
         for metric in CollectdTestCase.ALL_METRICS:
             os.unlink(self.metrics_file(cachedev, metric))
@@ -99,6 +120,22 @@ class CollectdTestCase(unittest.TestCase):
         return os.path.join(
                    self.cachedev_dir(cachedev),
                    'gauge-{0}-{1}'.format(metric, strftime('%Y-%m-%d')))
+
+
+class TestConfigWarnings(CollectdTestCase):
+    def module_config(self):
+        return """
+            Devices cachedevice
+            IgnoreSelected ok
+        """
+
+    def test_config_warnings(self):
+        self.assertStderrContains(
+                'flashcache module: '
+                'Ignoring unknown config key "Devices".')
+        self.assertStderrContains(
+                'flashcache module: '
+                'Ignoring wrong value "ok" of IgnoreSelected.')
 
 
 class TestStatsFromAllCaches(CollectdTestCase):
