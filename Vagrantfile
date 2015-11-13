@@ -18,5 +18,23 @@ Vagrant.configure('2') do |config|
     end
   end
 
-  config.vm.provision 'shell', path: 'vagrant/provision'
+  config.vm.provision 'shell', inline: <<SCRIPT
+echo 'DISABLE=1' > /etc/default/collectd
+
+apt-get update
+apt-get install -y --no-install-recommends \
+                -o Dpkg::Options::="--force-confold" \
+        linux-headers-amd64 \
+        flashcache-dkms \
+        flashcache-utils \
+        libpython2.7 \
+        collectd
+
+flashcache_create -p back cachedev1 \
+        /dev/disk/by-path/pci-0000:00:14.0-scsi-0:0:0:0 \
+        /dev/disk/by-path/pci-0000:00:14.0-scsi-0:0:1:0
+flashcache_create -p back cachedev2 \
+        /dev/disk/by-path/pci-0000:00:14.0-scsi-0:0:2:0 \
+        /dev/disk/by-path/pci-0000:00:14.0-scsi-0:0:3:0
+SCRIPT
 end
