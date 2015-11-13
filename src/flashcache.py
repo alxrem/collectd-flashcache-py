@@ -63,7 +63,7 @@ def detect_dm_devices():
                  for dmdev, ssd, disk
                  in re.findall(
                      r'^(.*?): \d+ \d+ flashcache conf:\n'
-                     r'\s+ssd dev \(.*?/(\w+)\), disk dev \(.*?/(\w+)\)',
+                     r'\s+ssd dev \(.*/(.+?)\), disk dev \(.*/(.+?)\)',
                      p.stdout.read(), re.M)])
 
 def read_callback():
