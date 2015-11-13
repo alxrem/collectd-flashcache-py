@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # vim: ts=4 sts=4 sw=4 et
 
@@ -8,12 +7,20 @@ import os.path
 import re
 from subprocess import Popen, PIPE, STDOUT
 
+
 PROC_ROOT = '/proc/flashcache'
+DMSETUP_RE = re.compile(
+        r'^(.*?): \d+ \d+ flashcache conf:\n'
+        r'\s+ssd dev \(.*/(.+?)\), disk dev \(.*/(.+?)\)',
+        re.M)
+STATS_RE = re.compile(r'(\w+)=(\d+)')
+
 
 class Config:
     DMSETUP = '/sbin/dmsetup'
     DEVICES = set()
     IGNORE_SELECTED = False
+
 
 def config_callback(conf):
     for node in conf.children:
@@ -61,10 +68,7 @@ def detect_dm_devices():
          raise Exception('dmsetup execution error')
     return dict([('{0}+{1}'.format(ssd, disk), dmdev)
                  for dmdev, ssd, disk
-                 in re.findall(
-                     r'^(.*?): \d+ \d+ flashcache conf:\n'
-                     r'\s+ssd dev \(.*/(.+?)\), disk dev \(.*/(.+?)\)',
-                     p.stdout.read(), re.M)])
+                 in DMSETUP_RE.findall(p.stdout.read())])
 
 def read_callback():
     for device in Config.DEVICES:
@@ -73,7 +77,7 @@ def read_callback():
                 dispatch_stats(stats.read(), device)
 
 def dispatch_stats(stats, device):
-    for metric, val in re.findall(r'(\w+)=(\d+)', stats):
+    for metric, val in STATS_RE.findall(stats):
         value = collectd.Values()
         value.plugin = 'flashcache'
         value.plugin_instance = Config.DM_DEVICES[device]
@@ -85,6 +89,7 @@ def dispatch_stats(stats, device):
 def log(message, level='error'):
     level_method = getattr(collectd, level)
     level_method('flashcache plugin: {0}'.format(message))
+
 
 collectd.register_config(config_callback)
 collectd.register_init(init_callback)
