@@ -9,6 +9,7 @@ from subprocess import Popen, PIPE, STDOUT
 
 
 PROC_ROOT = '/proc/flashcache'
+
 DMSETUP_RE = re.compile(
         r'^(.*?): \d+ \d+ flashcache conf:\n'
         r'\s+ssd dev \(.*/(.+?)\), disk dev \(.*/(.+?)\)',
@@ -35,8 +36,7 @@ def config_callback(conf):
             elif value in ['false', 'no', '0']:
                 ignore_selected = False
             else:
-                log('{0} is wrong value of IgnoreSelected'.format(value),
-                    'warning')
+                log('{0} is wrong value of IgnoreSelected'.format(value))
         else:
             log('Unknown confiuration key {0}'.format(node.key))
 
@@ -48,7 +48,7 @@ def init_callback():
     if Config.DEVICES:
         for device in Config.DEVICES - all_devices:
             log('Unknown flashcache device {0}. '
-                    'Examine {1}.'.format(device, PROC_ROOT), 'warning')
+                'Examine {1}.'.format(device, PROC_ROOT))
         if Config.IGNORE_SELECTED:
             Config.DEVICES = all_devices - Config.DEVICES
         else:
@@ -86,7 +86,7 @@ def dispatch_stats(stats, device):
         value.values = [int(val)]
         value.dispatch()
 
-def log(message, level='error'):
+def log(message, level='warning'):
     level_method = getattr(collectd, level)
     level_method('flashcache plugin: {0}'.format(message))
 
