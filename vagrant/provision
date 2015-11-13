@@ -9,9 +9,9 @@ apt-get install -y --no-install-recommends \
 	collectd \
 	collectd-utils
 
-flashcache_destroy /dev/sda || true
-flashcache_create -p back cachedev1 /dev/sda /dev/sdb
-flashcache_destroy /dev/sdc || true
-flashcache_create -p back cachedev2 /dev/sdc /dev/sdd
+flashcache_destroy /dev/disk/by-path/pci-0000:00:14.0-scsi-0:0:0:0 || true
+flashcache_create -p back cachedev1 /dev/disk/by-path/pci-0000:00:14.0-scsi-0:0:0:0 /dev/disk/by-path/pci-0000:00:14.0-scsi-0:0:1:0
+flashcache_destroy /dev/disk/by-path/pci-0000:00:14.0-scsi-0:0:2:0 || true
+flashcache_create -p back cachedev2 /dev/disk/by-path/pci-0000:00:14.0-scsi-0:0:2:0 /dev/disk/by-path/pci-0000:00:14.0-scsi-0:0:3:0
 cp /vagrant/vagrant/collectd.conf /etc/collectd/
 service collectd restart
