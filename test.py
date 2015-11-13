@@ -114,4 +114,8 @@ class TestStatsFromAllCaches(CollectdTestCase):
 
 
 if __name__ == '__main__':
+    if os.geteuid() != 0:
+        import sys
+        sys.stderr.write('Tests must be run as root\n')
+        sys.exit(1)
     unittest.main()
