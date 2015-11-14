@@ -5,8 +5,7 @@
 import os
 import os.path
 import shutil
-import StringIO
-from subprocess import Popen, PIPE, STDOUT, call, check_output
+from subprocess import Popen, PIPE
 from tempfile import mkstemp, mkdtemp
 from time import strftime, sleep
 import unittest
@@ -134,12 +133,20 @@ class TestConfigWarnings(CollectdTestCase):
     @with_config("""
         Devices cachedevice
     """)
-    def test_config_warnings(self):
+    def test_warning_about_unknown_config_key(self):
         self.assertStderrContains(
                 'flashcache module: '
                 'Ignoring unknown config key "Devices".')
 
-class TestStatsFromAllCaches(CollectdTestCase):
+    @with_config("""
+        Device cachedevice
+    """)
+    def test_warning_about_unknown_device(self):
+        self.assertStderrContains(
+                'flashcache module: '
+                'Unknown flashcache device "cachedevice".')
+
+class TestDefautConfig(CollectdTestCase):
     def test_all_devices_has_all_metrics(self):
         self.assertHasAllMetrics('cachedev1')
         self.assertHasAllMetrics('cachedev2')
@@ -156,7 +163,7 @@ class TestIgnoreSelected(CollectdTestCase):
         Device cachedev2
         IgnoreSelected true
     """)
-    def test_only_cachedev1_has_metrics(self):
+    def test_ignore_cachedev2(self):
         self.assertHasAllMetrics('cachedev1')
         self.assertHasNoMetrics('cachedev2')
 
@@ -164,9 +171,43 @@ class TestIgnoreSelected(CollectdTestCase):
         Device cachedev2
         IgnoreSelected false
     """)
-    def test_only_cachedev2_has_metrics(self):
+    def test_collect_only_cachedev2(self):
         self.assertHasNoMetrics('cachedev1')
         self.assertHasAllMetrics('cachedev2')
+
+    @with_config("""
+        Device cachedev2
+    """)
+    def test_do_not_ignore_selected_by_default(self):
+        self.assertHasNoMetrics('cachedev1')
+        self.assertHasAllMetrics('cachedev2')
+
+
+class TestCustomDmsetupPath(CollectdTestCase):
+    def setUp(self):
+        shutil.move('/sbin/dmsetup', '/usr/local/bin/dmsetup')
+        super(TestCustomDmsetupPath, self).setUp()
+
+    def tearDown(self):
+        super(TestCustomDmsetupPath, self).tearDown()
+        shutil.move('/usr/local/bin/dmsetup', '/sbin/dmsetup')
+
+    @with_config("""
+        DMSetup "/usr/local/bin/dmsetup"
+    """)
+    def test_custom_dmsetup_path(self):
+        self.assertHasAllMetrics('cachedev1')
+        self.assertHasAllMetrics('cachedev2')
+
+
+class TestAbortOnInvalidDmsetupPath(CollectdTestCase):
+    @with_config("""
+        DMSetup "/notexists"
+    """)
+    def test_abort_on_invalid_dmsetup_path(self):
+        self.assertStderrContains("Can't execute /notexists.")
+        self.assertHasNoMetrics('cachedev1')
+        self.assertHasNoMetrics('cachedev2')
 
 
 if __name__ == '__main__':

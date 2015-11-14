@@ -46,7 +46,7 @@ def init_callback():
 
     unknown_devices = Config.DEVICES - all_devices
     for device in unknown_devices:
-        log('Unknown flashcache device {0}.'.format(device, PROC_ROOT))
+        log('Unknown flashcache device "{0}".'.format(device, PROC_ROOT))
 
     if Config.IGNORE_SELECTED:
         devices = all_devices - Config.DEVICES
@@ -58,7 +58,7 @@ def detect_mappings():
     try:
         p = Popen([Config.DMSETUP, 'table'], stdout=PIPE, stderr=STDOUT)
     except OSError:
-        raise Exception("Can't execute {0}".format(Config.DMSETUP))
+        raise Exception("Can't execute {0}.".format(Config.DMSETUP))
     rc = p.wait()
     if rc != 0:
          raise Exception('dmsetup execution error')
