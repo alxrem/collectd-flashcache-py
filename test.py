@@ -44,14 +44,17 @@ class CollectdTestCase(unittest.TestCase):
         shutil.rmtree(self.metrics_dir)
 
     def create_config(self):
-        config_fd, self.config = mkstemp()
-        module_config = self.module_config()
-        if module_config:
+        current_test = getattr(self, self._testMethodName)
+        if hasattr(current_test, 'config'):
             module_config = """
             <Module flashcache>
                 {0}
             </Module>
-            """.format(module_config)
+            """.format(current_test.config)
+        else:
+            module_config = ''
+
+        config_fd, self.config = mkstemp()
         os.write(config_fd, """
             Hostname "{0}"
             FQDNLookup false
@@ -66,15 +69,13 @@ class CollectdTestCase(unittest.TestCase):
             <Plugin python>
               ModulePath "/vagrant"
               Import "flashcache"
+              LogTraces true
 
               {2}
 
             </Plugin>
         """.format(self.hostname, self.metrics_dir, module_config))
         os.close(config_fd)
-
-    def module_config(self):
-        return ""
 
     def delete_config(self):
         os.unlink(self.config)
@@ -122,21 +123,21 @@ class CollectdTestCase(unittest.TestCase):
                    'gauge-{0}-{1}'.format(metric, strftime('%Y-%m-%d')))
 
 
-class TestConfigWarnings(CollectdTestCase):
-    def module_config(self):
-        return """
-            Devices cachedevice
-            IgnoreSelected ok
-        """
+def with_config(config):
+    def set_config(method):
+        method.config = config
+        return method
+    return set_config
 
+
+class TestConfigWarnings(CollectdTestCase):
+    @with_config("""
+        Devices cachedevice
+    """)
     def test_config_warnings(self):
         self.assertStderrContains(
                 'flashcache module: '
                 'Ignoring unknown config key "Devices".')
-        self.assertStderrContains(
-                'flashcache module: '
-                'Ignoring wrong value "ok" of IgnoreSelected.')
-
 
 class TestStatsFromAllCaches(CollectdTestCase):
     def test_all_devices_has_all_metrics(self):
@@ -148,6 +149,24 @@ class TestStatsFromAllCaches(CollectdTestCase):
         self.deleteAllMetrics('cachedev2')
         self.assertLeftNoMetrics('cachedev1')
         self.assertLeftNoMetrics('cachedev2')
+
+
+class TestIgnoreSelected(CollectdTestCase):
+    @with_config("""
+        Device cachedev2
+        IgnoreSelected true
+    """)
+    def test_only_cachedev1_has_metrics(self):
+        self.assertHasAllMetrics('cachedev1')
+        self.assertHasNoMetrics('cachedev2')
+
+    @with_config("""
+        Device cachedev2
+        IgnoreSelected false
+    """)
+    def test_only_cachedev2_has_metrics(self):
+        self.assertHasNoMetrics('cachedev1')
+        self.assertHasAllMetrics('cachedev2')
 
 
 if __name__ == '__main__':
