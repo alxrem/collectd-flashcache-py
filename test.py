@@ -27,22 +27,43 @@ class CollectdTestCase(unittest.TestCase):
         'uncached_writes']
 
     def setUp(self):
-        self.hostname = 'flashcache.localdomain'
-        self.create_metrics_dir()
-        self.create_config()
-        self.run_collectd()
+        self._hostname = 'flashcache.localdomain'
+        self._create_metrics_dir()
+        self._create_config()
+        self._run_collectd()
 
     def tearDown(self):
-        self.delete_metrics_dir()
-        self.delete_config()
+        self._delete_metrics_dir()
+        self._delete_config()
 
-    def create_metrics_dir(self):
-        self.metrics_dir = mkdtemp()
+    def assertHasMetric(self, cachedev, metric):
+        self.assertTrue(
+            os.path.isfile(self._metrics_file(cachedev, metric)),
+            'No metric {0} for device {1}'.format(metric, cachedev))
 
-    def delete_metrics_dir(self):
-        shutil.rmtree(self.metrics_dir)
+    def assertHasAllMetrics(self, cachedev):
+        for metric in CollectdTestCase.ALL_METRICS:
+            self.assertHasMetric(cachedev, metric)
 
-    def create_config(self):
+    def assertHasNoMetrics(self, cachedev):
+        self.assertFalse(os.path.exists(self._cachedev_dir(cachedev)))
+
+    def assertLeftNoMetrics(self, cachedev):
+        unknown_metrics = os.listdir(self._cachedev_dir(cachedev))
+        self.assertEqual(
+            0, len(unknown_metrics),
+            'Unknown metrics {0}'.format(', '.join(unknown_metrics)))
+
+    def assertStderrContains(self, message):
+        self.assertTrue(message in self._stderr)
+
+    def _create_metrics_dir(self):
+        self._metrics_dir = mkdtemp()
+
+    def _delete_metrics_dir(self):
+        shutil.rmtree(self._metrics_dir)
+
+    def _create_config(self):
         current_test = getattr(self, self._testMethodName)
         if hasattr(current_test, 'config'):
             module_config = """
@@ -53,7 +74,7 @@ class CollectdTestCase(unittest.TestCase):
         else:
             module_config = ''
 
-        config_fd, self.config = mkstemp()
+        config_fd, self._config = mkstemp()
         os.write(config_fd, """
             Hostname "{0}"
             FQDNLookup false
@@ -73,53 +94,27 @@ class CollectdTestCase(unittest.TestCase):
               {2}
 
             </Plugin>
-        """.format(self.hostname, self.metrics_dir, module_config))
+        """.format(self._hostname, self._metrics_dir, module_config))
         os.close(config_fd)
 
-    def delete_config(self):
-        os.unlink(self.config)
+    def _delete_config(self):
+        os.unlink(self._config)
 
-    def run_collectd(self):
-        p = Popen(['/usr/sbin/collectd', '-C', self.config, '-f'],
-                   stdout=PIPE, stderr=PIPE)
+    def _run_collectd(self):
+        p = Popen(['/usr/sbin/collectd', '-C', self._config, '-f'],
+                  stdout=PIPE, stderr=PIPE)
         sleep(0.1)
         p.terminate()
-        self.stdout, self.stderr = p.communicate()
+        self._stdout, self._stderr = p.communicate()
 
-    def assertHasMetric(self, cachedev, metric):
-        self.assertTrue(
-                os.path.isfile(self.metrics_file(cachedev, metric)),
-                'No metric {0} for device {1}'.format(metric, cachedev))
+    def _cachedev_dir(self, cachedev):
+        return os.path.join(self._metrics_dir, self._hostname,
+                            '{0}-{1}'.format('flashcache', cachedev))
 
-    def assertHasAllMetrics(self, cachedev):
-        for metric in CollectdTestCase.ALL_METRICS:
-            self.assertHasMetric(cachedev, metric)
-
-    def assertHasNoMetrics(self, cachedev):
-        self.assertFalse(os.path.exists(self.cachedev_dir(cachedev)))
-
-    def assertLeftNoMetrics(self, cachedev):
-        unknown_metrics = os.listdir(self.cachedev_dir(cachedev))
-        self.assertEqual(
-            0, len(unknown_metrics),
-            'Unknown metrics {0}'.format(', '.join(unknown_metrics)))
-
-    def assertStderrContains(self, message):
-        self.assertTrue(message in self.stderr)
-
-    def deleteAllMetrics(self, cachedev):
-        for metric in CollectdTestCase.ALL_METRICS:
-            os.unlink(self.metrics_file(cachedev, metric))
-
-    def cachedev_dir(self, cachedev):
+    def _metrics_file(self, cachedev, metric):
         return os.path.join(
-                   self.metrics_dir, self.hostname,
-                   '{0}-{1}'.format('flashcache', cachedev))
-
-    def metrics_file(self, cachedev, metric):
-        return os.path.join(
-                   self.cachedev_dir(cachedev),
-                   'gauge-{0}-{1}'.format(metric, strftime('%Y-%m-%d')))
+            self._cachedev_dir(cachedev),
+            'gauge-{0}-{1}'.format(metric, strftime('%Y-%m-%d')))
 
 
 def with_config(config):
@@ -134,17 +129,15 @@ class TestConfigWarnings(CollectdTestCase):
         Devices cachedevice
     """)
     def test_warning_about_unknown_config_key(self):
-        self.assertStderrContains(
-                'flashcache module: '
-                'Ignoring unknown config key "Devices".')
+        self.assertStderrContains('flashcache module: '
+                                  'Ignoring unknown config key "Devices".')
 
     @with_config("""
         Device cachedevice
     """)
     def test_warning_about_unknown_device(self):
-        self.assertStderrContains(
-                'flashcache module: '
-                'Unknown flashcache device "cachedevice".')
+        self.assertStderrContains('flashcache module: '
+                                  'Unknown flashcache device "cachedevice".')
 
 class TestDefautConfig(CollectdTestCase):
     def test_all_devices_has_all_metrics(self):
@@ -152,10 +145,14 @@ class TestDefautConfig(CollectdTestCase):
         self.assertHasAllMetrics('cachedev2')
 
     def test_all_devices_has_no_unknown_metrics(self):
-        self.deleteAllMetrics('cachedev1')
-        self.deleteAllMetrics('cachedev2')
+        self._delete_all_metrics('cachedev1')
+        self._delete_all_metrics('cachedev2')
         self.assertLeftNoMetrics('cachedev1')
         self.assertLeftNoMetrics('cachedev2')
+
+    def _delete_all_metrics(self, cachedev):
+        for metric in CollectdTestCase.ALL_METRICS:
+            os.unlink(self._metrics_file(cachedev, metric))
 
 
 class TestIgnoreSelected(CollectdTestCase):
