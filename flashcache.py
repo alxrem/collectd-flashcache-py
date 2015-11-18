@@ -9,12 +9,16 @@ from subprocess import Popen, PIPE, STDOUT
 
 
 PROC_ROOT = '/proc/flashcache'
+"""Where to search for flashcache module statistics."""
 
 DMSETUP_RE = re.compile(
     r'^(.*?): \d+ \d+ flashcache conf:\n'
     r'\s+ssd dev \(.*/(.+?)\), disk dev \(.*/(.+?)\)',
     re.M)
+"""Regexp to parse output of `dmsetup table`."""
+
 STATS_RE = re.compile(r'(\w+)=(\d+)')
+"""Regexp to parse statistics from /proc/flashcache."""
 
 
 CONFIG = {
@@ -26,6 +30,14 @@ CONFIG = {
 
 
 def config_callback(conf):
+    """Configure module.
+
+    Fill dictionary CONFIG with values of configurational directives
+
+    - Device
+    - UgnoreSelected
+    - DMSetup
+    """
     for node in conf.children:
         if node.key == 'Device':
             CONFIG['DEVICES'].add(node.values[0])
@@ -36,7 +48,15 @@ def config_callback(conf):
         else:
             log('Ignoring unknown config key "{0}".'.format(node.key))
 
+
 def init_callback():
+    """Initialize module.
+
+    According to configuration determine the devices for which
+    statistics should be collected. Initialize dictionary
+    ``CONFIG['MAPPINGS']`` by items of dictionary returned by
+    ``detect_mappings()``
+    """
     mappings = detect_mappings()
 
     if not CONFIG['DEVICES']:
@@ -56,7 +76,23 @@ def init_callback():
     CONFIG['MAPPINGS'] = dict([(device, mappings[device])
                                for device in devices])
 
+
 def detect_mappings():
+    """For each cache device find the appropriate disks.
+
+    Parse output of ``dmsetup table`` in form
+
+        cachedev1: 0 20480 flashcache conf:
+            ssd dev (/dev/sda), disk dev (/dev/sdb) cache mode(WRITE_BACK)
+            ...
+
+    and return dictionary like
+
+        {
+            'cachedev1': 'sda+sdb',
+            ...
+        }
+    """
     try:
         p = Popen([CONFIG['DMSETUP'], 'table'], stdout=PIPE, stderr=STDOUT)
     except OSError:
@@ -68,7 +104,14 @@ def detect_mappings():
                  for dmdev, ssd, disk
                  in DMSETUP_RE.findall(p.stdout.read())])
 
+
 def read_callback():
+    """Read and dispatch statistics of flashcache devices.
+
+    For devices registered in the ``CONFIG['MAPPINGS']`` dispatch
+    statistics from files ``flashcache_stats``, ``flashcache_errors``
+    from the directory ``/proc/flashcache``.
+    """
     for device in CONFIG['MAPPINGS']:
         for name in ['flashcache_stats', 'flashcache_errors']:
             stats_file = os.path.join(PROC_ROOT,
@@ -76,7 +119,16 @@ def read_callback():
             with open(stats_file) as stats:
                 dispatch_stats(stats.read(), device)
 
+
 def dispatch_stats(stats, device):
+    """Dispatch statistics of flashcache device.
+
+    Parse file with statistics in format
+
+        reads=90 writes=0 ...
+
+    and dispatch metrics named like ``flashcache-device/gauge-reads``.
+    """
     for metric, val in STATS_RE.findall(stats):
         value = collectd.Values()
         value.plugin = 'flashcache'
@@ -86,7 +138,13 @@ def dispatch_stats(stats, device):
         value.values = [int(val)]
         value.dispatch()
 
+
 def log(message, level='warning'):
+    """Write message to collectd log.
+
+    Call appropriate logging method of ``collectd`` module accordingly
+    to ``level`` parameter.
+    """
     level_method = getattr(collectd, level)
     level_method('flashcache module: {0}'.format(message))
 
