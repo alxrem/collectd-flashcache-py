@@ -1,6 +1,14 @@
 # -*- coding: utf-8 -*-
 # vim: ts=4 sts=4 sw=4 et
 
+"""
+flashcache plugin for CollectD
+
+The *flashcache plugin* collects statistics about flashcache devices.
+Gather all the metrics in /proc/flashcache in files flashcache_stats,
+flashcache_errors for each device.
+"""
+
 try:
     import collectd
     HAS_COLLECTD = True
