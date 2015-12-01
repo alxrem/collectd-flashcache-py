@@ -32,14 +32,12 @@ The path to utility dmsetup. Default value is _/sbin/dmsetup_.
 
     # Collectd statistics about all devices
     <Plugin python>
-        ModulePath "/usr/lib/collectd/python"
-        Import "flashcache"
+        Import "collectd_flashcache"
     </Plugin>
 
     # Collectd statistics about device cachedev1 only
     <Plugin python>
-        ModulePath "/usr/lib/collectd/python"
-        Import "flashcache"
+        Import "collectd_flashcache"
 
         <Module flashcache>
             Device cachedev1
@@ -48,8 +46,7 @@ The path to utility dmsetup. Default value is _/sbin/dmsetup_.
 
     # Collectd statistics about all devices except cachedev2
     <Plugin python>
-        ModulePath "/usr/lib/collectd/python"
-        Import "flashcache"
+        Import "collectd_flashcache"
 
         <Module flashcache>
             Device cachedev2

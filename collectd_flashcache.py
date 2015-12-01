@@ -94,15 +94,15 @@ def detect_mappings():
         }
     """
     try:
-        p = Popen([CONFIG['DMSETUP'], 'table'], stdout=PIPE, stderr=STDOUT)
+        dmsetup = Popen([CONFIG['DMSETUP'], 'table'],
+                        stdout=PIPE, stderr=STDOUT)
     except OSError:
         raise Exception("Can't execute {0}.".format(CONFIG['DMSETUP']))
-    rc = p.wait()
-    if rc != 0:
+    if dmsetup.wait() != 0:
         raise Exception('dmsetup execution error')
     return dict([(dmdev, '{0}+{1}'.format(ssd, disk))
                  for dmdev, ssd, disk
-                 in DMSETUP_RE.findall(p.stdout.read())])
+                 in DMSETUP_RE.findall(dmsetup.stdout.read())])
 
 
 def read_callback():
@@ -149,6 +149,6 @@ def log(message, level='warning'):
     level_method('flashcache module: {0}'.format(message))
 
 
-collectd.register_config(config_callback)
-collectd.register_init(init_callback)
-collectd.register_read(read_callback)
+collectd.register_config(config_callback, name='flashcache')
+collectd.register_init(init_callback, name='flashcache')
+collectd.register_read(read_callback, name='flashcache')

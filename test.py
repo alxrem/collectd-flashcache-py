@@ -87,8 +87,7 @@ class CollectdTestCase(unittest.TestCase):
             </Plugin>
 
             <Plugin python>
-              ModulePath "/vagrant"
-              Import "flashcache"
+              Import "collectd_flashcache"
               LogTraces true
 
               {2}
