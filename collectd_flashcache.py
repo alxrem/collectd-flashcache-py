@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 # vim: ts=4 sts=4 sw=4 et
 
-import collectd
+try:
+    import collectd
+    HAS_COLLECTD = True
+except ImportError:
+    HAS_COLLECTD = False
 import os
 import os.path
 import re
@@ -149,6 +153,7 @@ def log(message, level='warning'):
     level_method('flashcache module: {0}'.format(message))
 
 
-collectd.register_config(config_callback, name='flashcache')
-collectd.register_init(init_callback, name='flashcache')
-collectd.register_read(read_callback, name='flashcache')
+if HAS_COLLECTD:
+    collectd.register_config(config_callback, name='flashcache')
+    collectd.register_init(init_callback, name='flashcache')
+    collectd.register_read(read_callback, name='flashcache')
