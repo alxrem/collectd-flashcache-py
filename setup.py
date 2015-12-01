@@ -12,6 +12,7 @@ setup(name='collectd_flashcache',
       url='https://github.com/alxrem/collectd-flashcache-py',
       py_modules=['collectd_flashcache'],
       license='GPLv3+',
+      keywords='collectd plugin flashcache',
       classifiers=[
           'Development Status :: 3 - Alpha',
           'Environment :: Plugins',
@@ -21,6 +22,7 @@ setup(name='collectd_flashcache',
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 2.6',
           'Programming Language :: Python :: 2.7',
+          'Topic :: System :: Networking :: Monitoring',
           'Topic :: System :: Systems Administration',
       ]
      )
